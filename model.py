@@ -439,7 +439,7 @@ def efficientdet(config, num_classes, freeze_bn=False,
     w_head = w_bifpn
     d_head = config.d_head 
     backbone_cls = backbones[phi]
-    
+
     feature_extractor_model = backbone_cls(input_shape=input_shape, include_top=False)
 
     features = feature_extractor(model=feature_extractor_model, layer_list=config.feature_extraction_layer_names)
@@ -496,6 +496,6 @@ if __name__ == '__main__':
     B0Config, B1Config, B2Config, B3Config, B4Config, B5Config, B6Config
 
     num_classes = 10
-    training_model = efficientdet(B0Config(), num_classes)
+    training_model = efficientdet(B2Config(), num_classes)
 
     print(training_model.summary())

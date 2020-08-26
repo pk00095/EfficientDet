@@ -1,4 +1,6 @@
+import tensorflow as tf
 import numpy as np
+import tempfile, zipfile, os, tqdm, glob, cv2
 
 w_bifpns = [64, 88, 112, 160, 224, 288, 384]
 d_bifpns = [3, 4, 5, 6, 7, 7, 8]
@@ -58,3 +60,42 @@ def B5Config(weighted_bifpn=False, num_anchors=9):
 
 def B6Config(weighted_bifpn=False, num_anchors=9):
     return Config(6, weighted_bifpn=False, num_anchors=9)
+
+def download_chess_dataset(dataset_path=tempfile.gettempdir()):
+    zip_url = 'https://public.roboflow.ai/ds/uBYkFHtqpy?key=HZljsh2sXY'
+    path_to_zip_file = tf.keras.utils.get_file(
+        'chess_pieces.zip',
+        zip_url,
+        cache_dir=dataset_path, 
+        cache_subdir='',
+        extract=False)
+    directory_to_extract_to = os.path.join(dataset_path,'chess_pieces')
+    with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
+        zip_ref.extractall(directory_to_extract_to)
+
+    images_dir = os.path.join(dataset_path, 'chess_pieces','train')
+    annotation_dir = os.path.join(dataset_path, 'chess_pieces','train')
+
+    for image in tqdm.tqdm(glob.glob(os.path.join(images_dir, '*.jpg'))):
+        new_name = image.replace('_jpg.rf.', '')
+        os.rename(image, new_name)
+
+        annotation = image.replace('.jpg', '.xml')
+        new_name = annotation.replace('_jpg.rf.', '')
+        os.rename(annotation, new_name)
+
+    return images_dir, annotation_dir
+
+
+def draw_boxes_on_image(image, boxes, labels):
+    image = image.astype('uint8')
+    # num_boxes = boxes.shape[0]
+    for l,(x1,x2,y1,y2) in zip(labels,boxes):
+        if x1==y1==x2==y2==-1:
+            break
+
+        class_and_score = f"label :{l}"
+        cv2.rectangle(img=image, pt1=(int(x1), int(y1)), pt2=(int(x2), int(y2)), color=(255, 0, 0), thickness=2)
+        cv2.putText(img=image, text=class_and_score, org=(int(x1), int(y1) - 10), fontFace=cv2.FONT_HERSHEY_COMPLEX, fontScale=0.5, color=(0, 255, 255), thickness=1)
+    return image
+
