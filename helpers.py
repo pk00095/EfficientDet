@@ -90,7 +90,7 @@ def download_chess_dataset(dataset_path=tempfile.gettempdir()):
 def draw_boxes_on_image(image, boxes, labels):
     image = image.astype('uint8')
     # num_boxes = boxes.shape[0]
-    for l,(x1,x2,y1,y2) in zip(labels,boxes):
+    for l,(x1,y1,x2,y2) in zip(labels,boxes):
         if x1==y1==x2==y2==-1:
             break
 

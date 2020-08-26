@@ -6,23 +6,6 @@ import cv2, os, glob
 import numpy as np
 # from .preprocessing import anchor_targets_bbox, anchors_for_shape
 
-@tf.function
-def decode_pad_resize(image_string, image_size):
-  """Summary
-  
-  Args:
-      image_string (TYPE): Description
-      pad_height (TYPE): Description
-      pad_width (TYPE): Description
-      scale (TYPE): Description
-  
-  Returns:
-      tf.tensor: Description
-  """
-  image = tf.image.decode_jpeg(image_string)
-  image, scale = tf.numpy_function(rescale_image, [image, image_size], Tout=[tf.uint8, keras.backend.floatx()])
-  #image.set_shape([None, None, 3])
-  return image #, scale
 
 def rescale_image(image, image_size):
     image_height, image_width = image.shape[:2]
@@ -43,6 +26,23 @@ def rescale_image(image, image_size):
 
     return image, keras.backend.cast_to_floatx(scale)
 
+@tf.function
+def decode_pad_resize(image_string, image_size):
+  """Summary
+  
+  Args:
+      image_string (TYPE): Description
+      pad_height (TYPE): Description
+      pad_width (TYPE): Description
+      scale (TYPE): Description
+  
+  Returns:
+      tf.tensor: Description
+  """
+  image = tf.image.decode_jpeg(image_string)
+  image, scale = tf.numpy_function(rescale_image, [image, image_size], Tout=[tf.uint8, keras.backend.floatx()])
+  #image.set_shape([None, None, 3])
+  return image #, scale
 
 def rescale_bboxes(bboxes, scale):
 
@@ -102,9 +102,10 @@ class Parser(object):
         ymin_batch = tf.expand_dims(tf.sparse.to_dense(parsed_example['image/object/bbox/ymin'], default_value=-1), axis=-1) #*scale_matrix
         ymax_batch = tf.expand_dims(tf.sparse.to_dense(parsed_example['image/object/bbox/ymax'], default_value=-1), axis=-1) #*scale_matrix
 
-        label_batch = tf.expand_dims(tf.sparse.to_dense(parsed_example['image/object/class/label'], default_value=-1), axis=-1)
+        # label_batch = tf.expand_dims(tf.sparse.to_dense(parsed_example['image/object/class/label'], default_value=-1), axis=-1)
+        label_batch = tf.sparse.to_dense(parsed_example['image/object/class/label'])
 
-        bboxes_batch = tf.concat([xmin_batch, xmax_batch, ymin_batch, ymax_batch], axis=-1)
+        bboxes_batch = tf.concat([xmin_batch, ymin_batch, xmax_batch, ymax_batch], axis=-1)
 
         bboxes_batch = tf.numpy_function(rescale_bboxes,(bboxes_batch, scale_batch), Tout=keras.backend.floatx())
 
