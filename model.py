@@ -18,7 +18,7 @@ else:
 
 from layers import ClipBoxes, RegressBoxes, FilterDetections, wBiFPNAdd, BatchNormalization
 from initializers import PriorProbability
-from utils.anchors import anchors_for_shape
+from preprocessing import anchors_for_shape
 import numpy as np
 
 from helpers import B0Config, B1Config, B2Config, B3Config, B4Config, B5Config, B6Config
@@ -350,11 +350,19 @@ class BoxNet(models.Model):
         self.reshape = layers.Reshape((-1, num_values))
         self.level = 0
 
-    def call(self, inputs, **kwargs):
+    def call(self, inputs, level, **kwargs):
         feature = inputs
         for i in range(self.depth):
             feature = self.convs[i](feature)
-            feature = self.bns[i][self.level](feature)
+            feature = self.bns[i][level](feature)
+
+            # try:
+            #     feature = self.bns[i][self.level](feature)
+            # except Exception as e:
+            #     print(i, self.level)
+            #     print(len(self.bns[i]))
+            #     raise e
+
             feature = self.relu(feature)
         outputs = self.head(feature)
         outputs = self.reshape(outputs)
@@ -409,11 +417,12 @@ class ClassNet(models.Model):
         self.activation = layers.Activation('sigmoid')
         self.level = 0
 
-    def call(self, inputs, **kwargs):
+    def call(self, inputs, level, **kwargs):
         feature = inputs
         for i in range(self.depth):
             feature = self.convs[i](feature)
-            feature = self.bns[i][self.level](feature)
+            # feature = self.bns[i][self.level](feature)
+            feature = self.bns[i][level](feature)
             feature = self.relu(feature)
         outputs = self.head(feature)
         outputs = self.reshape(outputs)
@@ -459,9 +468,9 @@ def efficientdet(config, num_classes, freeze_bn=False,
         for i in range(d_bifpn):
             fpn_features = build_BiFPN(fpn_features, w_bifpn, i, freeze_bn=freeze_bn)
 
-    classification = [class_net(feature) for feature in fpn_features]
+    classification = [class_net(feature, index) for index, feature in enumerate(fpn_features)]
     classification = layers.Concatenate(axis=1, name='classification')(classification)
-    regression = [box_net(feature) for feature in fpn_features]
+    regression = [box_net(feature, index) for index, feature in enumerate(fpn_features)]
     regression = layers.Concatenate(axis=1, name='regression')(regression)
 
     model = models.Model(inputs=feature_extractor_model.input, outputs=[classification, regression], name=f'efficientdet-b{phi}')
