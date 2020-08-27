@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow import keras
 import numpy as np
 import tempfile, zipfile, os, tqdm, glob, cv2
 
@@ -18,9 +19,32 @@ _FEATURE_EXTRACTION_LAYERS = [
     ('block1c_add','block2f_add','block3f_add','block5h_add','block7c_add')
 ]
 
-class Config(object):
+class AnchorParameters:
+    """ The parameteres that define how anchors are generated.
+    Args
+        sizes   : List of sizes to use. Each size corresponds to one feature level.
+        strides : List of strides to use. Each stride correspond to one feature level.
+        ratios  : List of ratios to use per location in a feature map.
+        scales  : List of scales to use per location in a feature map.
+    """
+    def __init__(self, 
+        sizes=[32, 64, 128, 256, 512], 
+        strides=[8, 16, 32, 64, 128], 
+        ratios=[0.5, 1, 2], 
+        scales=[2 ** 0, 2 ** (1.0 / 3.0), 2 ** (2.0 / 3.0)]):
+        self.sizes   = sizes
+        self.strides = strides
+        self.ratios  = np.array(ratios, keras.backend.floatx())
+        self.scales  = np.array(scales, keras.backend.floatx())
+
+    def num_anchors(self):
+        return len(self.ratios) * len(self.scales)
+
+class Config(AnchorParameters):
     """docstring for Config"""
-    def __init__(self, phi, weighted_bifpn=False, num_anchors=9):
+    def __init__(self, phi, weighted_bifpn=False, num_anchors=9, *args, **kwargs):
+
+        super(Config, self).__init__(*args, **kwargs)
 
         assert isinstance(weighted_bifpn,bool), 'weighted_bifpn should be a boolean'
         assert phi in range(7), f"phi should be between 0 and 7, not {phi}"

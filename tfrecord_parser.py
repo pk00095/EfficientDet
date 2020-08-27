@@ -2,9 +2,10 @@
 """
 import tensorflow as tf
 from tensorflow import keras
+from tensorflow.keras.applications.imagenet_utils import preprocess_input
 import cv2, os, glob
 import numpy as np
-# from .preprocessing import anchor_targets_bbox, anchors_for_shape
+from preprocessing import anchor_targets_bbox, anchors_for_shape
 
 
 def rescale_image(image, image_size):
@@ -57,11 +58,62 @@ def rescale_bboxes(bboxes, scale):
 
 class Parser(object):
   """docstring for Parser"""
-  def __init__(self, batch_size, num_classes, image_size):
+  def __init__(self, config, batch_size, num_classes):
     # super(Parser, self).__init__()
     self.batch_size = batch_size
-    self.image_size = image_size
+    self.image_size = config.height
     self.num_classes = num_classes
+    self.config = config
+
+
+  def process_bboxes(self, image_array, bboxes, labels):
+
+      # delete bboxes containing [-1,-1,-1,-1]
+      bboxes = bboxes[~np.all(bboxes<=-1, axis=1)]
+      # delete labels containing[-1]
+      labels = labels[labels>-1]#[0]
+
+      # generate raw anchors
+      raw_anchors = anchors_for_shape(
+          image_shape=image_array.shape,
+          sizes=self.config.sizes,
+          ratios=self.config.ratios,
+          scales=self.config.scales,
+          strides=self.config.strides,
+          pyramid_levels=[3, 4, 5, 6, 7],
+          shapes_callback=None,
+      )
+
+      # generate anchorboxes and class labels      
+      gt_regression, gt_classification = anchor_targets_bbox(
+            anchors=raw_anchors,
+            image=image_array,
+            bboxes=bboxes,
+            gt_labels=labels,
+            num_classes=self.num_classes,
+            negative_overlap=0.4,
+            positive_overlap=0.5
+        )
+
+      return gt_regression, gt_classification
+
+  @tf.function
+  def tf_process_bboxes(self, image_batch, bboxes_batch, label_batch):
+
+      regression_batch = list()
+      classification_batch = list()
+
+      for index in range(self.batch_size):
+          bboxes, labels = bboxes_batch[index], label_batch[index]
+          image_array = image_batch[index]
+          # bboxes = tf.convert_to_tensor([xmins,ymins,xmaxs,ymaxs], dtype=keras.backend.floatx())
+          # bboxes = tf.transpose(bboxes)
+          gt_regression, gt_classification = tf.numpy_function(self.process_bboxes, [image_array, bboxes, labels], Tout=[keras.backend.floatx(), keras.backend.floatx()])
+
+          regression_batch.append(gt_regression)
+          classification_batch.append(gt_classification)
+
+      return tf.convert_to_tensor(regression_batch), tf.convert_to_tensor(classification_batch)
     
   def _parse_function(self,serialized):
         """Summary
@@ -76,10 +128,10 @@ class Parser(object):
           'image/height': tf.io.FixedLenFeature([], tf.int64),
           'image/width': tf.io.FixedLenFeature([], tf.int64),
           'image/encoded': tf.io.FixedLenFeature([],tf.string),
-          'image/object/bbox/xmin': tf.io.VarLenFeature(tf.keras.backend.floatx()),
-          'image/object/bbox/xmax': tf.io.VarLenFeature(tf.keras.backend.floatx()),
-          'image/object/bbox/ymin': tf.io.VarLenFeature(tf.keras.backend.floatx()),
-          'image/object/bbox/ymax': tf.io.VarLenFeature(tf.keras.backend.floatx()),
+          'image/object/bbox/xmin': tf.io.VarLenFeature(keras.backend.floatx()),
+          'image/object/bbox/xmax': tf.io.VarLenFeature(keras.backend.floatx()),
+          'image/object/bbox/ymin': tf.io.VarLenFeature(keras.backend.floatx()),
+          'image/object/bbox/ymax': tf.io.VarLenFeature(keras.backend.floatx()),
           'image/f_id': tf.io.FixedLenFeature([], tf.int64),
           'image/object/class/label':tf.io.VarLenFeature(tf.int64)}
 
@@ -102,14 +154,16 @@ class Parser(object):
         ymin_batch = tf.expand_dims(tf.sparse.to_dense(parsed_example['image/object/bbox/ymin'], default_value=-1), axis=-1) #*scale_matrix
         ymax_batch = tf.expand_dims(tf.sparse.to_dense(parsed_example['image/object/bbox/ymax'], default_value=-1), axis=-1) #*scale_matrix
 
-        # label_batch = tf.expand_dims(tf.sparse.to_dense(parsed_example['image/object/class/label'], default_value=-1), axis=-1)
-        label_batch = tf.sparse.to_dense(parsed_example['image/object/class/label'])
+        label_batch = tf.expand_dims(tf.sparse.to_dense(parsed_example['image/object/class/label'], default_value=-1), axis=-1)
+        # label_batch = tf.sparse.to_dense(parsed_example['image/object/class/label'])
 
         bboxes_batch = tf.concat([xmin_batch, ymin_batch, xmax_batch, ymax_batch], axis=-1)
 
         bboxes_batch = tf.numpy_function(rescale_bboxes,(bboxes_batch, scale_batch), Tout=keras.backend.floatx())
 
-        return image_batch, {'bboxes':bboxes_batch, 'labels':label_batch}
+        regression_batch, classification_batch = self.tf_process_bboxes(image_batch, bboxes_batch, label_batch) #], Tout=[keras.backend.floatx(), keras.backend.floatx()])
+
+        return preprocess_input(image_batch) , {'regression':regression_batch, 'classification':classification_batch}
 
 
   def get_dataset(self, filenames):
@@ -138,14 +192,16 @@ class Parser(object):
 if __name__ == '__main__':
     # filepath = os.path.join(os.getcwd(),'DATA','train*.tfrecord')
 
-    from helpers import draw_boxes_on_image
+    from helpers import draw_boxes_on_image, B0Config
+
+    config = B0Config()
 
     batch_size = 4
 
     parser = Parser(
+      config=config,
       batch_size=batch_size,
-      num_classes=5,
-      image_size=300)
+      num_classes=15)
 
     dataset = parser.get_dataset(filenames='./DATA/train*.tfrecord')
 
@@ -154,18 +210,18 @@ if __name__ == '__main__':
     for x,y in dataset.take(4):
         image_batch = x.numpy()
 
-        bboxes = y['bboxes'].numpy()
-        labels = y['labels'].numpy()
+        bboxes = y['regression'].numpy()
+        labels = y['classification'].numpy()
 
         print(image_batch.shape, bboxes.shape, labels.shape)
         print(image_batch.dtype, bboxes.dtype, labels.dtype)
 
-        for index in range(batch_size):
-          annotated_arr = draw_boxes_on_image(image_batch[index], bboxes[index], labels[index])
+        # for index in range(batch_size):
+        #   annotated_arr = draw_boxes_on_image(image_batch[index], bboxes[index], labels[index])
 
-          cv2.imwrite(f"{i}.jpg", annotated_arr)
+        #   cv2.imwrite(f"{i}.jpg", annotated_arr)
 
-          i+= 1
+        #   i+= 1
 
         # print(scales.shape)
         # print(scales)
