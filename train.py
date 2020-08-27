@@ -139,8 +139,8 @@ def main():
 
     batch_size = 4
     num_classes = 15
-    epochs = 5
-    steps_per_epoch = 1000
+    epochs = 5//5
+    steps_per_epoch = 1000//100
 
 
     parser = Parser(
@@ -175,6 +175,10 @@ def main():
         epochs=epochs, 
         steps_per_epoch=steps_per_epoch,)
         # callbacks=callbacks)
+
+    os.makedirs("./checkpoints", exist_ok=True)
+
+    training_model.save("./checkpoints/efficientdet_final")
 
 
 
