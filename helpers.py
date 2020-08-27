@@ -3,6 +3,45 @@ from tensorflow import keras
 import numpy as np
 import tempfile, zipfile, os, tqdm, glob, cv2
 
+from PIL import Image, ImageDraw, ImageFont
+
+font = ImageFont.load_default()
+
+interpolation_options = {
+    'nearest':cv2.INTER_NEAREST,
+    'linear':cv2.INTER_LINEAR,
+    'cubic':cv2.INTER_CUBIC,
+    'area':cv2.INTER_AREA,
+    'lanczos4':cv2.INTER_LANCZOS4
+}
+
+
+STANDARD_COLORS = [
+    'AliceBlue', 'Chartreuse', 'Aqua', 'Aquamarine', 'Azure', 'Beige', 'Bisque',
+    'BlanchedAlmond', 'BlueViolet', 'BurlyWood', 'CadetBlue', 'AntiqueWhite',
+    'Chocolate', 'Coral', 'CornflowerBlue', 'Cornsilk', 'Crimson', 'Cyan',
+    'DarkCyan', 'DarkGoldenRod', 'DarkGrey', 'DarkKhaki', 'DarkOrange',
+    'DarkOrchid', 'DarkSalmon', 'DarkSeaGreen', 'DarkTurquoise', 'DarkViolet',
+    'DeepPink', 'DeepSkyBlue', 'DodgerBlue', 'FireBrick', 'FloralWhite',
+    'ForestGreen', 'Fuchsia', 'Gainsboro', 'GhostWhite', 'Gold', 'GoldenRod',
+    'Salmon', 'Tan', 'HoneyDew', 'HotPink', 'IndianRed', 'Ivory', 'Khaki',
+    'Lavender', 'LavenderBlush', 'LawnGreen', 'LemonChiffon', 'LightBlue',
+    'LightCoral', 'LightCyan', 'LightGoldenRodYellow', 'LightGray', 'LightGrey',
+    'LightGreen', 'LightPink', 'LightSalmon', 'LightSeaGreen', 'LightSkyBlue',
+    'LightSlateGray', 'LightSlateGrey', 'LightSteelBlue', 'LightYellow', 'Lime',
+    'LimeGreen', 'Linen', 'Magenta', 'MediumAquaMarine', 'MediumOrchid',
+    'MediumPurple', 'MediumSeaGreen', 'MediumSlateBlue', 'MediumSpringGreen',
+    'MediumTurquoise', 'MediumVioletRed', 'MintCream', 'MistyRose', 'Moccasin',
+    'NavajoWhite', 'OldLace', 'Olive', 'OliveDrab', 'Orange', 'OrangeRed',
+    'Orchid', 'PaleGoldenRod', 'PaleGreen', 'PaleTurquoise', 'PaleVioletRed',
+    'PapayaWhip', 'PeachPuff', 'Peru', 'Pink', 'Plum', 'PowderBlue', 'Purple',
+    'Red', 'RosyBrown', 'RoyalBlue', 'SaddleBrown', 'Green', 'SandyBrown',
+    'SeaGreen', 'SeaShell', 'Sienna', 'Silver', 'SkyBlue', 'SlateBlue',
+    'SlateGray', 'SlateGrey', 'Snow', 'SpringGreen', 'SteelBlue', 'GreenYellow',
+    'Teal', 'Thistle', 'Tomato', 'Turquoise', 'Violet', 'Wheat', 'White',
+    'WhiteSmoke', 'Yellow', 'YellowGreen'
+]
+
 w_bifpns = [64, 88, 112, 160, 224, 288, 384]
 d_bifpns = [3, 4, 5, 6, 7, 7, 8]
 d_heads = [3, 3, 3, 4, 4, 4, 5]
@@ -122,4 +161,55 @@ def draw_boxes_on_image(image, boxes, labels):
         cv2.rectangle(img=image, pt1=(int(x1), int(y1)), pt2=(int(x2), int(y2)), color=(255, 0, 0), thickness=2)
         cv2.putText(img=image, text=class_and_score, org=(int(x1), int(y1) - 10), fontFace=cv2.FONT_HERSHEY_COMPLEX, fontScale=0.5, color=(0, 255, 255), thickness=1)
     return image
+
+
+def annotate_image(image, bboxes, scores, labels, threshold=0.5, label_dict=None):
+  """Summary
+  
+  Args:
+      image_path (str): path to image to annotate
+      bboxes (TYPE): Description
+      scores (TYPE): Description
+      labels (TYPE): Description
+      threshold (float, optional): Description
+      label_dict (None, optional): Description
+  
+  Returns:
+      TYPE: Description
+  """
+  # image = Image.open(image_path)
+  Imagedraw = ImageDraw.Draw(image)
+
+  for box, label, score in zip(bboxes, labels, scores):
+    if score < threshold:
+      continue
+
+    (left,top,right,bottom) = box
+
+    label_to_display = label
+    if isinstance(label_dict, dict):
+      label_to_display = label_dict[label]
+
+    caption = "{}|{:.3f}".format(label_to_display, score)
+    #draw_caption(draw, b, caption)
+
+    colortofill = STANDARD_COLORS[label]
+    Imagedraw.rectangle([left,top,right,bottom], fill=None, outline=colortofill)
+
+    display_str_heights = font.getsize(caption)[1]
+    # Each display_str has a top and bottom margin of 0.05x.
+    total_display_str_height = (1 + 2 * 0.05) * display_str_heights
+
+    if top > total_display_str_height:
+        text_bottom = top
+    else:
+        text_bottom = bottom + total_display_str_height
+
+    text_width, text_height = font.getsize(caption)
+    margin = np.ceil(0.05 * text_height)
+    Imagedraw.rectangle([(left, text_bottom-text_height-2*margin), (left+text_width,text_bottom)], fill=colortofill)
+
+    Imagedraw.text((left+margin, text_bottom-text_height-margin),caption,fill='black',font=font)
+
+  return image
 

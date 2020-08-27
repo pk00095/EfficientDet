@@ -439,7 +439,7 @@ def feature_extractor(model, layer_list):
     return features
 
 def efficientdet(config, num_classes, freeze_bn=False,
-                 score_threshold=0.01, detect_quadrangle=False, anchor_parameters=None, separable_conv=True):
+                 score_threshold=0.01, detect_quadrangle=False, separable_conv=True, weights='imagenet'):
 
     phi = config.phi
     weighted_bifpn = config.weighted_bifpn
@@ -452,7 +452,7 @@ def efficientdet(config, num_classes, freeze_bn=False,
     d_head = config.d_head 
     backbone_cls = backbones[phi]
 
-    feature_extractor_model = backbone_cls(input_shape=input_shape, include_top=False)
+    feature_extractor_model = backbone_cls(input_shape=input_shape, include_top=False, weights=weights)
 
     features = feature_extractor(model=feature_extractor_model, layer_list=config.feature_extraction_layer_names)
 
@@ -483,14 +483,27 @@ def efficientdet(config, num_classes, freeze_bn=False,
 
     return model
 
-    # apply predicted regression to anchors
-    # anchors = anchors_for_shape((config.input_shape[0], config.input_shape[1]), anchor_params=anchor_parameters)
-    # anchors = tf.convert_to_tensor(anchors)
-    # anchors_input = tf.expand_dims(anchors, axis=0)
-    # boxes = RegressBoxes(name='boxes')([anchors_input, regression[..., :4]])
-    # boxes = ClipBoxes(name='clipped_boxes')([model.input, boxes])
 
-    # # filter detections (apply NMS / score threshold / select top-k)
+def freeze_model(model, config, score_threshold=0.5):
+
+    classification, regression = model.outputs
+
+    anchors = anchors_for_shape(
+          image_shape=config.input_shape,
+          sizes=config.sizes,
+          ratios=config.ratios,
+          scales=config.scales,
+          strides=config.strides,
+          pyramid_levels=[3, 4, 5, 6, 7],
+          shapes_callback=None,
+      )
+    # apply predicted regression to anchors
+    anchors = tf.convert_to_tensor(anchors)
+    anchors_input = tf.expand_dims(anchors, axis=0)
+    boxes = RegressBoxes(name='boxes')([anchors_input, regression[..., :4]])
+    boxes = ClipBoxes(name='clipped_boxes')([model.input, boxes])
+
+    # filter detections (apply NMS / score threshold / select top-k)
     # if detect_quadrangle:
     #     detections = FilterDetections(
     #         name='filtered_detections',
@@ -498,14 +511,10 @@ def efficientdet(config, num_classes, freeze_bn=False,
     #         detect_quadrangle=True
     #     )([boxes, classification, regression[..., 4:8], regression[..., 8]])
     # else:
-    #     detections = FilterDetections(
-    #         name='filtered_detections',
-    #         score_threshold=score_threshold
-    #     )([boxes, classification])
+    detections = FilterDetections(name='filtered_detections', score_threshold=score_threshold)([boxes, classification])
 
-    # prediction_model = models.Model(inputs=model.input, outputs=detections, name='efficientdet_p')
-    # return model, prediction_model
-
+    prediction_model = models.Model(inputs=model.input, outputs=detections, name='efficientdet_p')
+    return prediction_model
 
 if __name__ == '__main__':
     B0Config, B1Config, B2Config, B3Config, B4Config, B5Config, B6Config
