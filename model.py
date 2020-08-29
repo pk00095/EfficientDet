@@ -18,7 +18,7 @@ else:
 
 from layers import ClipBoxes, RegressBoxes, FilterDetections, wBiFPNAdd, BatchNormalization
 from initializers import PriorProbability
-from preprocessing import anchors_for_shape
+from utils.anchors import anchors_for_shape
 import numpy as np
 
 from helpers import B0Config, B1Config, B2Config, B3Config, B4Config, B5Config, B6Config
@@ -65,7 +65,7 @@ def build_wBiFPN(features, num_channels, id, freeze_bn=False):
         P7_in = layers.MaxPooling2D(pool_size=3, strides=2, padding='same', name='resample_p7/maxpool')(P6_in)
         P7_U = layers.UpSampling2D()(P7_in)
         P6_td = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode0/add')([P6_in, P7_U])
-        P6_td = layers.Activation(lambda x: tf.nn.swish(x))(P6_td)
+        P6_td = layers.Activation(tf.nn.swish)(P6_td)
         P6_td = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                    name=f'fpn_cells/cell_{id}/fnode0/op_after_combine5')(P6_td)
         P5_in_1 = layers.Conv2D(num_channels, kernel_size=1, padding='same',
@@ -75,7 +75,7 @@ def build_wBiFPN(features, num_channels, id, freeze_bn=False):
         # P5_in_1 = BatchNormalization(freeze=freeze_bn, name=f'fpn_cells/cell_{id}/fnode1/resample_0_2_6/bn')(P5_in_1)
         P6_U = layers.UpSampling2D()(P6_td)
         P5_td = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode1/add')([P5_in_1, P6_U])
-        P5_td = layers.Activation(lambda x: tf.nn.swish(x))(P5_td)
+        P5_td = layers.Activation(tf.nn.swish)(P5_td)
         P5_td = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                    name=f'fpn_cells/cell_{id}/fnode1/op_after_combine6')(P5_td)
         P4_in_1 = layers.Conv2D(num_channels, kernel_size=1, padding='same',
@@ -85,7 +85,7 @@ def build_wBiFPN(features, num_channels, id, freeze_bn=False):
         # P4_in_1 = BatchNormalization(freeze=freeze_bn, name=f'fpn_cells/cell_{id}/fnode2/resample_0_1_7/bn')(P4_in_1)
         P5_U = layers.UpSampling2D()(P5_td)
         P4_td = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode2/add')([P4_in_1, P5_U])
-        P4_td = layers.Activation(lambda x: tf.nn.swish(x))(P4_td)
+        P4_td = layers.Activation(tf.nn.swish)(P4_td)
         P4_td = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                    name=f'fpn_cells/cell_{id}/fnode2/op_after_combine7')(P4_td)
         P3_in = layers.Conv2D(num_channels, kernel_size=1, padding='same',
@@ -95,7 +95,7 @@ def build_wBiFPN(features, num_channels, id, freeze_bn=False):
         # P3_in = BatchNormalization(freeze=freeze_bn, name=f'fpn_cells/cell_{id}/fnode3/resample_0_0_8/bn')(P3_in)
         P4_U = layers.UpSampling2D()(P4_td)
         P3_out = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode3/add')([P3_in, P4_U])
-        P3_out = layers.Activation(lambda x: tf.nn.swish(x))(P3_out)
+        P3_out = layers.Activation(tf.nn.swish)(P3_out)
         P3_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode3/op_after_combine8')(P3_out)
         P4_in_2 = layers.Conv2D(num_channels, kernel_size=1, padding='same',
@@ -105,7 +105,7 @@ def build_wBiFPN(features, num_channels, id, freeze_bn=False):
         # P4_in_2 = BatchNormalization(freeze=freeze_bn, name=f'fpn_cells/cell_{id}/fnode4/resample_0_1_9/bn')(P4_in_2)
         P3_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P3_out)
         P4_out = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode4/add')([P4_in_2, P4_td, P3_D])
-        P4_out = layers.Activation(lambda x: tf.nn.swish(x))(P4_out)
+        P4_out = layers.Activation(tf.nn.swish)(P4_out)
         P4_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode4/op_after_combine9')(P4_out)
 
@@ -116,19 +116,19 @@ def build_wBiFPN(features, num_channels, id, freeze_bn=False):
         # P5_in_2 = BatchNormalization(freeze=freeze_bn, name=f'fpn_cells/cell_{id}/fnode5/resample_0_2_10/bn')(P5_in_2)
         P4_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P4_out)
         P5_out = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode5/add')([P5_in_2, P5_td, P4_D])
-        P5_out = layers.Activation(lambda x: tf.nn.swish(x))(P5_out)
+        P5_out = layers.Activation(tf.nn.swish)(P5_out)
         P5_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode5/op_after_combine10')(P5_out)
 
         P5_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P5_out)
         P6_out = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode6/add')([P6_in, P6_td, P5_D])
-        P6_out = layers.Activation(lambda x: tf.nn.swish(x))(P6_out)
+        P6_out = layers.Activation(tf.nn.swish)(P6_out)
         P6_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode6/op_after_combine11')(P6_out)
 
         P6_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P6_out)
         P7_out = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode7/add')([P7_in, P6_D])
-        P7_out = layers.Activation(lambda x: tf.nn.swish(x))(P7_out)
+        P7_out = layers.Activation(tf.nn.swish)(P7_out)
         P7_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode7/op_after_combine12')(P7_out)
 
@@ -136,45 +136,45 @@ def build_wBiFPN(features, num_channels, id, freeze_bn=False):
         P3_in, P4_in, P5_in, P6_in, P7_in = features
         P7_U = layers.UpSampling2D()(P7_in)
         P6_td = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode0/add')([P6_in, P7_U])
-        P6_td = layers.Activation(lambda x: tf.nn.swish(x))(P6_td)
+        P6_td = layers.Activation(tf.nn.swish)(P6_td)
         P6_td = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                    name=f'fpn_cells/cell_{id}/fnode0/op_after_combine5')(P6_td)
         P6_U = layers.UpSampling2D()(P6_td)
         P5_td = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode1/add')([P5_in, P6_U])
-        P5_td = layers.Activation(lambda x: tf.nn.swish(x))(P5_td)
+        P5_td = layers.Activation(tf.nn.swish)(P5_td)
         P5_td = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                    name=f'fpn_cells/cell_{id}/fnode1/op_after_combine6')(P5_td)
         P5_U = layers.UpSampling2D()(P5_td)
         P4_td = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode2/add')([P4_in, P5_U])
-        P4_td = layers.Activation(lambda x: tf.nn.swish(x))(P4_td)
+        P4_td = layers.Activation(tf.nn.swish)(P4_td)
         P4_td = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                    name=f'fpn_cells/cell_{id}/fnode2/op_after_combine7')(P4_td)
         P4_U = layers.UpSampling2D()(P4_td)
         P3_out = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode3/add')([P3_in, P4_U])
-        P3_out = layers.Activation(lambda x: tf.nn.swish(x))(P3_out)
+        P3_out = layers.Activation(tf.nn.swish)(P3_out)
         P3_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode3/op_after_combine8')(P3_out)
         P3_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P3_out)
         P4_out = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode4/add')([P4_in, P4_td, P3_D])
-        P4_out = layers.Activation(lambda x: tf.nn.swish(x))(P4_out)
+        P4_out = layers.Activation(tf.nn.swish)(P4_out)
         P4_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode4/op_after_combine9')(P4_out)
 
         P4_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P4_out)
         P5_out = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode5/add')([P5_in, P5_td, P4_D])
-        P5_out = layers.Activation(lambda x: tf.nn.swish(x))(P5_out)
+        P5_out = layers.Activation(tf.nn.swish)(P5_out)
         P5_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode5/op_after_combine10')(P5_out)
 
         P5_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P5_out)
         P6_out = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode6/add')([P6_in, P6_td, P5_D])
-        P6_out = layers.Activation(lambda x: tf.nn.swish(x))(P6_out)
+        P6_out = layers.Activation(tf.nn.swish)(P6_out)
         P6_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode6/op_after_combine11')(P6_out)
 
         P6_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P6_out)
         P7_out = wBiFPNAdd(name=f'fpn_cells/cell_{id}/fnode7/add')([P7_in, P6_D])
-        P7_out = layers.Activation(lambda x: tf.nn.swish(x))(P7_out)
+        P7_out = layers.Activation(tf.nn.swish)(P7_out)
         P7_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode7/op_after_combine12')(P7_out)
     return P3_out, P4_td, P5_td, P6_td, P7_out
@@ -193,7 +193,7 @@ def build_BiFPN(features, num_channels, id, freeze_bn=False):
         P7_in = layers.MaxPooling2D(pool_size=3, strides=2, padding='same', name='resample_p7/maxpool')(P6_in)
         P7_U = layers.UpSampling2D()(P7_in)
         P6_td = layers.Add(name=f'fpn_cells/cell_{id}/fnode0/add')([P6_in, P7_U])
-        P6_td = layers.Activation(lambda x: tf.nn.swish(x))(P6_td)
+        P6_td = layers.Activation(tf.nn.swish)(P6_td)
         P6_td = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                    name=f'fpn_cells/cell_{id}/fnode0/op_after_combine5')(P6_td)
         P5_in_1 = layers.Conv2D(num_channels, kernel_size=1, padding='same',
@@ -203,7 +203,7 @@ def build_BiFPN(features, num_channels, id, freeze_bn=False):
         # P5_in_1 = BatchNormalization(freeze=freeze_bn, name=f'fpn_cells/cell_{id}/fnode1/resample_0_2_6/bn')(P5_in_1)
         P6_U = layers.UpSampling2D()(P6_td)
         P5_td = layers.Add(name=f'fpn_cells/cell_{id}/fnode1/add')([P5_in_1, P6_U])
-        P5_td = layers.Activation(lambda x: tf.nn.swish(x))(P5_td)
+        P5_td = layers.Activation(tf.nn.swish)(P5_td)
         P5_td = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                    name=f'fpn_cells/cell_{id}/fnode1/op_after_combine6')(P5_td)
         P4_in_1 = layers.Conv2D(num_channels, kernel_size=1, padding='same',
@@ -213,7 +213,7 @@ def build_BiFPN(features, num_channels, id, freeze_bn=False):
         # P4_in_1 = BatchNormalization(freeze=freeze_bn, name=f'fpn_cells/cell_{id}/fnode2/resample_0_1_7/bn')(P4_in_1)
         P5_U = layers.UpSampling2D()(P5_td)
         P4_td = layers.Add(name=f'fpn_cells/cell_{id}/fnode2/add')([P4_in_1, P5_U])
-        P4_td = layers.Activation(lambda x: tf.nn.swish(x))(P4_td)
+        P4_td = layers.Activation(tf.nn.swish)(P4_td)
         P4_td = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                    name=f'fpn_cells/cell_{id}/fnode2/op_after_combine7')(P4_td)
         P3_in = layers.Conv2D(num_channels, kernel_size=1, padding='same',
@@ -223,7 +223,7 @@ def build_BiFPN(features, num_channels, id, freeze_bn=False):
         # P3_in = BatchNormalization(freeze=freeze_bn, name=f'fpn_cells/cell_{id}/fnode3/resample_0_0_8/bn')(P3_in)
         P4_U = layers.UpSampling2D()(P4_td)
         P3_out = layers.Add(name=f'fpn_cells/cell_{id}/fnode3/add')([P3_in, P4_U])
-        P3_out = layers.Activation(lambda x: tf.nn.swish(x))(P3_out)
+        P3_out = layers.Activation(tf.nn.swish)(P3_out)
         P3_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode3/op_after_combine8')(P3_out)
         P4_in_2 = layers.Conv2D(num_channels, kernel_size=1, padding='same',
@@ -233,7 +233,7 @@ def build_BiFPN(features, num_channels, id, freeze_bn=False):
         # P4_in_2 = BatchNormalization(freeze=freeze_bn, name=f'fpn_cells/cell_{id}/fnode4/resample_0_1_9/bn')(P4_in_2)
         P3_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P3_out)
         P4_out = layers.Add(name=f'fpn_cells/cell_{id}/fnode4/add')([P4_in_2, P4_td, P3_D])
-        P4_out = layers.Activation(lambda x: tf.nn.swish(x))(P4_out)
+        P4_out = layers.Activation(tf.nn.swish)(P4_out)
         P4_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode4/op_after_combine9')(P4_out)
 
@@ -244,19 +244,19 @@ def build_BiFPN(features, num_channels, id, freeze_bn=False):
         # P5_in_2 = BatchNormalization(freeze=freeze_bn, name=f'fpn_cells/cell_{id}/fnode5/resample_0_2_10/bn')(P5_in_2)
         P4_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P4_out)
         P5_out = layers.Add(name=f'fpn_cells/cell_{id}/fnode5/add')([P5_in_2, P5_td, P4_D])
-        P5_out = layers.Activation(lambda x: tf.nn.swish(x))(P5_out)
+        P5_out = layers.Activation(tf.nn.swish)(P5_out)
         P5_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode5/op_after_combine10')(P5_out)
 
         P5_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P5_out)
         P6_out = layers.Add(name=f'fpn_cells/cell_{id}/fnode6/add')([P6_in, P6_td, P5_D])
-        P6_out = layers.Activation(lambda x: tf.nn.swish(x))(P6_out)
+        P6_out = layers.Activation(tf.nn.swish)(P6_out)
         P6_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode6/op_after_combine11')(P6_out)
 
         P6_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P6_out)
         P7_out = layers.Add(name=f'fpn_cells/cell_{id}/fnode7/add')([P7_in, P6_D])
-        P7_out = layers.Activation(lambda x: tf.nn.swish(x))(P7_out)
+        P7_out = layers.Activation(tf.nn.swish)(P7_out)
         P7_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode7/op_after_combine12')(P7_out)
 
@@ -264,51 +264,51 @@ def build_BiFPN(features, num_channels, id, freeze_bn=False):
         P3_in, P4_in, P5_in, P6_in, P7_in = features
         P7_U = layers.UpSampling2D()(P7_in)
         P6_td = layers.Add(name=f'fpn_cells/cell_{id}/fnode0/add')([P6_in, P7_U])
-        P6_td = layers.Activation(lambda x: tf.nn.swish(x))(P6_td)
+        P6_td = layers.Activation(tf.nn.swish)(P6_td)
         P6_td = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                    name=f'fpn_cells/cell_{id}/fnode0/op_after_combine5')(P6_td)
         P6_U = layers.UpSampling2D()(P6_td)
         P5_td = layers.Add(name=f'fpn_cells/cell_{id}/fnode1/add')([P5_in, P6_U])
-        P5_td = layers.Activation(lambda x: tf.nn.swish(x))(P5_td)
+        P5_td = layers.Activation(tf.nn.swish)(P5_td)
         P5_td = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                    name=f'fpn_cells/cell_{id}/fnode1/op_after_combine6')(P5_td)
         P5_U = layers.UpSampling2D()(P5_td)
         P4_td = layers.Add(name=f'fpn_cells/cell_{id}/fnode2/add')([P4_in, P5_U])
-        P4_td = layers.Activation(lambda x: tf.nn.swish(x))(P4_td)
+        P4_td = layers.Activation(tf.nn.swish)(P4_td)
         P4_td = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                    name=f'fpn_cells/cell_{id}/fnode2/op_after_combine7')(P4_td)
         P4_U = layers.UpSampling2D()(P4_td)
         P3_out = layers.Add(name=f'fpn_cells/cell_{id}/fnode3/add')([P3_in, P4_U])
-        P3_out = layers.Activation(lambda x: tf.nn.swish(x))(P3_out)
+        P3_out = layers.Activation(tf.nn.swish)(P3_out)
         P3_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode3/op_after_combine8')(P3_out)
         P3_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P3_out)
         P4_out = layers.Add(name=f'fpn_cells/cell_{id}/fnode4/add')([P4_in, P4_td, P3_D])
-        P4_out = layers.Activation(lambda x: tf.nn.swish(x))(P4_out)
+        P4_out = layers.Activation(tf.nn.swish)(P4_out)
         P4_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode4/op_after_combine9')(P4_out)
 
         P4_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P4_out)
         P5_out = layers.Add(name=f'fpn_cells/cell_{id}/fnode5/add')([P5_in, P5_td, P4_D])
-        P5_out = layers.Activation(lambda x: tf.nn.swish(x))(P5_out)
+        P5_out = layers.Activation(tf.nn.swish)(P5_out)
         P5_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode5/op_after_combine10')(P5_out)
 
         P5_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P5_out)
         P6_out = layers.Add(name=f'fpn_cells/cell_{id}/fnode6/add')([P6_in, P6_td, P5_D])
-        P6_out = layers.Activation(lambda x: tf.nn.swish(x))(P6_out)
+        P6_out = layers.Activation(tf.nn.swish)(P6_out)
         P6_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode6/op_after_combine11')(P6_out)
 
         P6_D = layers.MaxPooling2D(pool_size=3, strides=2, padding='same')(P6_out)
         P7_out = layers.Add(name=f'fpn_cells/cell_{id}/fnode7/add')([P7_in, P6_D])
-        P7_out = layers.Activation(lambda x: tf.nn.swish(x))(P7_out)
+        P7_out = layers.Activation(tf.nn.swish)(P7_out)
         P7_out = SeparableConvBlock(num_channels=num_channels, kernel_size=3, strides=1,
                                     name=f'fpn_cells/cell_{id}/fnode7/op_after_combine12')(P7_out)
     return P3_out, P4_td, P5_td, P6_td, P7_out
 
 
-class BoxNet(models.Model):
+class BoxNet(layers.Layer):
     def __init__(self, width, depth, num_anchors=9, separable_conv=True, freeze_bn=False, detect_quadrangle=False, **kwargs):
         super(BoxNet, self).__init__(**kwargs)
         self.width = width
@@ -316,6 +316,7 @@ class BoxNet(models.Model):
         self.num_anchors = num_anchors
         self.separable_conv = separable_conv
         self.detect_quadrangle = detect_quadrangle
+        self.freeze_bn = freeze_bn
         num_values = 9 if detect_quadrangle else 4
         options = {
             'kernel_size': 3,
@@ -366,8 +367,19 @@ class BoxNet(models.Model):
         # self.level += 1
         return output_tensor_lists
 
+    def get_config(self):
+        base_config = super(BoxNet, self).get_config()
 
-class ClassNet(models.Model):
+        config = dict(
+            width=self.width, 
+            depth=self.depth, 
+            num_anchors=self.num_anchors, 
+            separable_conv=self.separable_conv, 
+            freeze_bn=self.freeze_bn, 
+            detect_quadrangle=self.detect_quadrangle)
+        return dict(list(base_config.items()) + list(config.items()))
+
+class ClassNet(layers.Layer):
     def __init__(self, width, depth, num_classes, num_anchors, separable_conv=True, freeze_bn=False, **kwargs):
         super(ClassNet, self).__init__(**kwargs)
         self.width = width
@@ -375,6 +387,7 @@ class ClassNet(models.Model):
         self.num_classes = num_classes
         self.num_anchors = num_anchors
         self.separable_conv = separable_conv
+        self.freeze_bn = freeze_bn
         options = {
             'kernel_size': 3,
             'strides': 1,
@@ -433,6 +446,16 @@ class ClassNet(models.Model):
         # self.level += 1
         return output_tensor_lists
 
+    def get_config(self):
+        base_config = super(ClassNet, self).get_config()
+        config = dict(
+            width=self.width, 
+            depth=self.depth, 
+            num_classes = self.num_classes,
+            num_anchors=self.num_anchors, 
+            separable_conv=self.separable_conv, 
+            freeze_bn=self.freeze_bn,)        
+        return dict(list(base_config.items()) + list(config.items()))
 
 def feature_extractor(model, layer_list):
     features = [model.get_layer(name).output for name in layer_list]

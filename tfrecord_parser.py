@@ -5,8 +5,8 @@ from tensorflow import keras
 from tensorflow.keras.applications.imagenet_utils import preprocess_input
 import cv2, os, glob
 import numpy as np
-from preprocessing import anchor_targets_bbox, anchors_for_shape
-
+# from preprocessing import anchor_targets_bbox, anchors_for_shape
+from utils.anchors import anchors_for_shape, anchor_targets_bbox
 
 def rescale_image(image, image_size):
     image_height, image_width = image.shape[:2]
@@ -58,12 +58,13 @@ def rescale_bboxes(bboxes, scale):
 
 class Parser(object):
   """docstring for Parser"""
-  def __init__(self, config, batch_size, num_classes):
+  def __init__(self, config, batch_size, num_classes, training=True):
     # super(Parser, self).__init__()
     self.batch_size = batch_size
     self.image_size = config.height
     self.num_classes = num_classes
     self.config = config
+    self._is_training = training
 
 
   def process_bboxes(self, image_array, bboxes, labels):
@@ -89,7 +90,7 @@ class Parser(object):
             anchors=raw_anchors,
             image=image_array,
             bboxes=bboxes,
-            gt_labels=labels,
+            labels=labels,
             num_classes=self.num_classes,
             negative_overlap=0.4,
             positive_overlap=0.5
@@ -163,7 +164,10 @@ class Parser(object):
 
         regression_batch, classification_batch = self.tf_process_bboxes(image_batch, bboxes_batch, label_batch) #], Tout=[keras.backend.floatx(), keras.backend.floatx()])
 
-        return preprocess_input(image_batch) , {'regression':regression_batch, 'classification':classification_batch}
+        if self._is_training:
+          image_batch = preprocess_input(image_batch)
+
+        return image_batch , {'regression':regression_batch, 'classification':classification_batch}
 
 
   def get_dataset(self, filenames):
@@ -207,23 +211,37 @@ if __name__ == '__main__':
 
     i = 0
 
+    import pdb
+
     for x,y in dataset.take(4):
         image_batch = x.numpy()
 
         bboxes = y['regression'].numpy()
         labels = y['classification'].numpy()
 
-        print(image_batch.shape, bboxes.shape, labels.shape)
-        print(image_batch.dtype, bboxes.dtype, labels.dtype)
+        for index in range(batch_size):
 
-        # for index in range(batch_size):
-        #   annotated_arr = draw_boxes_on_image(image_batch[index], bboxes[index], labels[index])
+          print("==================================")
+          print(f'images shape {image_batch[index].shape}')
+          print(f'bboxes shape {bboxes[index].shape}')
+          print(f'labels shape {labels[index].shape}')
+          print(labels.dtype)
 
-        #   cv2.imwrite(f"{i}.jpg", annotated_arr)
+          # print(f'unique labels {np.unique(np.argmax(labels[index,:,:-1], axis=-1))}')
 
-        #   i+= 1
+          ignore_index_classification = labels[index,:,-1]
+          ignore_index_regression = bboxes[index,:,-1]
 
-        # print(scales.shape)
-        # print(scales)
+          print(f'ignore index equality of regression and classification == {np.array_equal(ignore_index_classification, ignore_index_regression)}')
+
+          current_labels = labels[index]
+
+          ignore_index = current_labels[current_labels[:,-1]==-1]
+          positive_index = current_labels[current_labels[:,-1]==1]
+          negative_index = current_labels[current_labels[:,-1]==0]
+
+          print(f'ignore index = {np.unique(np.argmax(ignore_index, axis=-1))}')
+          print(f'positive_index = {np.unique(np.argmax(positive_index, axis=-1))}')
+          print(f'negative_index = {np.unique(np.argmax(negative_index, axis=-1))}')
 
 

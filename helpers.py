@@ -178,6 +178,9 @@ def annotate_image(image, bboxes, scores, labels, threshold=0.5, label_dict=None
       TYPE: Description
   """
   # image = Image.open(image_path)
+  # print('+++++++++++++++++++++++++++++')
+  if isinstance(image, np.ndarray):
+    image = Image.fromarray(image.astype('uint8'))
   Imagedraw = ImageDraw.Draw(image)
 
   for box, label, score in zip(bboxes, labels, scores):
@@ -187,6 +190,7 @@ def annotate_image(image, bboxes, scores, labels, threshold=0.5, label_dict=None
     (left,top,right,bottom) = box
 
     label_to_display = label
+    # print(label_to_display)
     if isinstance(label_dict, dict):
       label_to_display = label_dict[label]
 

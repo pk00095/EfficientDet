@@ -137,9 +137,9 @@ def main():
     # pprint(vars(config))
     # exit()
 
-    batch_size = 4
+    batch_size = 2
     num_classes = 15
-    epochs = 5
+    epochs = 5*2
     steps_per_epoch = 1000
 
 
@@ -152,20 +152,21 @@ def main():
 
     # compile model
     training_model.compile(
-        optimizer=Adam(lr=1e-3), 
+        optimizer=Adam(lr=1e-4, clipnorm=0.001), 
         loss={
             'regression': smooth_l1(),
             'classification': focal()})
 
-    # print(training_model.summary())
-
-    # # create the callbacks
-    # callbacks = create_callbacks(
-    #     model,
-    #     prediction_model,
-    #     validation_generator,
-    #     args,
-    # )
+    reduce_lr_callback = keras.callbacks.ReduceLROnPlateau(
+        monitor    = 'loss',
+        factor     = 0.1,
+        patience   = 2,
+        verbose    = 1,
+        mode       = 'auto',
+        min_delta  = 0.0001,
+        cooldown   = 0,
+        min_lr     = 0
+    )
 
 
     train_dataset_function = parser.get_dataset(filenames='./DATA/train*.tfrecord')
@@ -173,12 +174,12 @@ def main():
     training_model.fit(
         train_dataset_function, 
         epochs=epochs, 
-        steps_per_epoch=steps_per_epoch,)
-        # callbacks=callbacks)
+        steps_per_epoch=steps_per_epoch,
+        callbacks=[reduce_lr_callback])
 
     os.makedirs("./checkpoints", exist_ok=True)
 
-    training_model.save("./checkpoints/efficientdetB2_final")
+    training_model.save("./checkpoints/efficientdetB2_final.h5")
 
 
 

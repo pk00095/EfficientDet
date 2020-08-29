@@ -11,10 +11,12 @@ import numpy as np
 from tensorflow.keras.applications.imagenet_utils import preprocess_input
 from helpers import annotate_image as image_annotator
 
+from model import ClassNet, BoxNet
 
-config = B0Config()
 
-training_model = keras.models.load_model('./checkpoints/efficientdet_final', compile=False)
+config = B2Config()
+
+training_model = keras.models.load_model('./checkpoints/efficientdetB2_final.h5', compile=False, custom_objects={'ClassNet':ClassNet, 'BoxNet':BoxNet})
 
 prediction_model = freeze_model(model=training_model, config=config)
 
