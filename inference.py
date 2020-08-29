@@ -12,11 +12,21 @@ from tensorflow.keras.applications.imagenet_utils import preprocess_input
 from helpers import annotate_image as image_annotator
 
 from model import ClassNet, BoxNet
+from initializers import PriorProbability
 
 
-config = B2Config()
+config = B0Config()
+num_classes = 15
 
-training_model = keras.models.load_model('./checkpoints/efficientdetB2_final.h5', compile=False, custom_objects={'ClassNet':ClassNet, 'BoxNet':BoxNet})
+keras.backend.clear_session()
+
+training_model = efficientdet(config, num_classes, weights=None)
+training_model.load_weights('./checkpoints/efficientdetB0_final.h5')
+
+# training_model = keras.models.load_model('./checkpoints/efficientdetB0_final.h5', 
+#     compile=False, 
+#     # custom_objects={'ClassNet':ClassNet, 'BoxNet':BoxNet, 'PriorProbability':PriorProbability})
+#     custom_objects={'PriorProbability':PriorProbability})
 
 prediction_model = freeze_model(model=training_model, config=config)
 

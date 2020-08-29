@@ -132,14 +132,14 @@ def main():
 
     from pprint import pprint
 
-    config = B2Config()
+    config = B0Config()
 
     # pprint(vars(config))
     # exit()
 
     batch_size = 2
     num_classes = 15
-    epochs = 5*2
+    epochs = 5
     steps_per_epoch = 1000
 
 
@@ -148,7 +148,7 @@ def main():
       batch_size=batch_size,
       num_classes=num_classes) 
 
-    training_model = efficientdet(config, num_classes, weights=None)
+    training_model = efficientdet(config, num_classes, weights='imagenet')
 
     # compile model
     training_model.compile(
@@ -179,7 +179,7 @@ def main():
 
     os.makedirs("./checkpoints", exist_ok=True)
 
-    training_model.save("./checkpoints/efficientdetB2_final.h5")
+    training_model.save("./checkpoints/efficientdetB0_final.h5")
 
 
 

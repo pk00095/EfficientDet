@@ -352,20 +352,15 @@ class BoxNet(layers.Layer):
         self.level = 0
 
     def call(self, inputs, **kwargs):
-
-        output_tensor_lists = []
-
-        for level, feature in enumerate(inputs):
-            # feature = inputs
-            for i in range(self.depth):
-                feature = self.convs[i](feature)
-                feature = self.bns[i][level](feature)
-                feature = self.relu(feature)
-            outputs = self.head(feature)
-            outputs = self.reshape(outputs)
-            output_tensor_lists.append(outputs)
-        # self.level += 1
-        return output_tensor_lists
+        feature, level = inputs
+        for i in range(self.depth):
+            feature = self.convs[i](feature)
+            feature = self.bns[i][self.level](feature)
+            feature = self.relu(feature)
+        outputs = self.head(feature)
+        outputs = self.reshape(outputs)
+        self.level += 1
+        return outputs
 
     def get_config(self):
         base_config = super(BoxNet, self).get_config()
@@ -429,22 +424,16 @@ class ClassNet(layers.Layer):
 
     # def call(self, inputs, level, **kwargs):
     def call(self, inputs, **kwargs):
-
-        output_tensor_lists = []
-
-        for level, feature in enumerate(inputs):
-            # feature = inputs
-            for i in range(self.depth):
-                feature = self.convs[i](feature)
-                # feature = self.bns[i][self.level](feature)
-                feature = self.bns[i][level](feature)
-                feature = self.relu(feature)
-            outputs = self.head(feature)
-            outputs = self.reshape(outputs)
-            outputs = self.activation(outputs)
-            output_tensor_lists.append(outputs)
-        # self.level += 1
-        return output_tensor_lists
+        feature, level = inputs
+        for i in range(self.depth):
+            feature = self.convs[i](feature)
+            feature = self.bns[i][self.level](feature)
+            feature = self.relu(feature)
+        outputs = self.head(feature)
+        outputs = self.reshape(outputs)
+        outputs = self.activation(outputs)
+        self.level += 1
+        return outputs
 
     def get_config(self):
         base_config = super(ClassNet, self).get_config()
@@ -494,13 +483,18 @@ def efficientdet(config, num_classes, freeze_bn=False,
         for i in range(d_bifpn):
             fpn_features = build_BiFPN(fpn_features, w_bifpn, i, freeze_bn=freeze_bn)
 
-    # classification = [class_net(feature, index) for index, feature in enumerate(fpn_features)]
-    classification = class_net(fpn_features)
+    classification = [class_net([feature, i]) for i, feature in enumerate(fpn_features)]
     classification = layers.Concatenate(axis=1, name='classification')(classification)
-
-    regression = box_net(fpn_features)
-    # regression = [box_net(feature, index) for index, feature in enumerate(fpn_features)]
+    regression = [box_net([feature, i]) for i, feature in enumerate(fpn_features)]
     regression = layers.Concatenate(axis=1, name='regression')(regression)
+
+    # # classification = [class_net(feature, index) for index, feature in enumerate(fpn_features)]
+    # classification = class_net(fpn_features)
+    # classification = layers.Concatenate(axis=1, name='classification')(classification)
+
+    # regression = box_net(fpn_features)
+    # # regression = [box_net(feature, index) for index, feature in enumerate(fpn_features)]
+    # regression = layers.Concatenate(axis=1, name='regression')(regression)
 
     model = models.Model(inputs=feature_extractor_model.input, outputs=[classification, regression], name=f'efficientdet-b{phi}')
 
